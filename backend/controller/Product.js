@@ -1,0 +1,56 @@
+const Product = require('../models/Product.js');
+
+const getAllProducts = async (req, res) => {
+  try {
+    const products = await Product.find();
+    res.status(200).json(products);
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+};
+
+const createProduct = async (req, res) => {
+  const { title, description, downloadUrl, price } = req.body;
+  const imagePath = req.file?.path;
+
+  if (!imagePath) {
+    return res.status(400).json({ message: 'Image upload required.' });
+  }
+
+  try {
+    const product = new Product({
+      title,
+      description,
+      image: imagePath,
+      price,
+    });
+
+    await product.save();
+    res.status(201).json(product);
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+};
+
+
+const deleteProduct = async (req, res) => {
+  const { id } = req.params;
+
+  try {
+    const product = await Product.findByIdAndDelete(id);
+    if (!product) {
+      return res.status(404).json({ message: 'Product not found' });
+    }
+
+    // Delete image file
+    fs.unlink(product.image, (err) => {
+      if (err) console.error('Failed to delete image:', err);
+    });
+
+    res.status(200).json({ message: 'Product deleted successfully' });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+};
+
+module.exports = { getAllProducts, createProduct, deleteProduct};
