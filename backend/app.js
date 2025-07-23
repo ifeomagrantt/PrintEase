@@ -1,43 +1,57 @@
 const express = require('express');
-const dotenv = require('dotenv');
 const cors = require('cors');
-
-const userRoutes = require("./routes/Users.js");
-const productRoutes = require("./routes/Products.js");
+const dotenv = require('dotenv');
+const path = require('path');
 const connectDB = require('./lib/db.js');
+const userRoutes = require('./routes/Users.js');
+const productRoutes = require('./routes/Products.js');
 
-// Load environment variables
 dotenv.config();
-
 const app = express();
-const PORT = process.env.PORT || 3000;
+const PORT = process.env.PORT || 5001;
 
-// Middleware
-app.use(express.json()); // For JSON bodies
+// Serve uploaded files statically
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
-// CORS Middleware
+// CORS setup to allow requests from React frontend on localhost:3000
 app.use(cors({
-  origin: 'http://localhost:3000',
-  methods: ['GET', 'POST', 'PATCH', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization'],
+  origin: process.env.REACT_APP_URL, // Your React app's URL
+  methods: ['GET', 'POST', 'PATCH', 'DELETE'],
+  allowedHeaders: ['Content-Type', 'Authorization']
 }));
 
-// Debug log (optional)
-app.use((req, res, next) => {
-  console.log('[CORS DEBUG]', req.method, req.headers.origin);
-  next();
+app.get('/download/:filename', (req, res) => {
+  const filename = req.params.filename;
+  const filePath = path.join(__dirname, 'uploads', 'images', filename);
+  console.log('Download requested for:', filePath);
+
+  res.download(filePath, filename, (err) => {
+    if (err) {
+      console.error('Download error:', err);
+      res.status(404).send('File not found');
+    }
+  });
 });
 
-// Routes
+
+
+// Preflight OPTIONS request handling
+app.options('*', cors());
+
+// Middleware to parse JSON bodies
+app.use(express.json());
+
+// Define API routes
 app.use('/api/users', userRoutes);
 app.use('/api/products', productRoutes);
 
+// Generic error handler middleware
 app.use((error, req, res, next) => {
-  console.error('ERROR', error);
+  console.error('ERROR:', error);
   res.status(error.code || 500).json({ message: error.message || 'An unknown error occurred!' });
 });
 
-// DB Connection 
+// Connect to DB and start the server
 connectDB().then(() => {
   app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
 }).catch(err => {
