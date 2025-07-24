@@ -1,5 +1,7 @@
 const Product = require('../models/Product.js');
 const fs = require('fs');
+const { validationResult } = require('express-validator');
+
 
 const getAllProducts = async (req, res) => {
   try {
@@ -11,85 +13,117 @@ const getAllProducts = async (req, res) => {
 };
 
 const createProduct = async (req, res) => {
+  // STEP 1: Check role
   if (req.userData.role !== 'admin') {
     return res.status(403).json({ message: 'Only admins can upload products.' });
   }
 
-  const { title } = req.body;
-  const imagePath = req.file?.path;
+  // STEP 2: Validate inputs
+  const errors = validationResult(req);
+  if (!errors.isEmpty()) {
+    return res.status(422).json({ message: 'Invalid input.' });
+  }
 
+  const { title } = req.body;
+  const imagePath = req.file.path;
+
+  // STEP 3: Check if image exists
   if (!imagePath) {
     return res.status(400).json({ message: 'Image upload required.' });
   }
 
+  // STEP 4: Create and save product
+  let product;
   try {
-    const product = new Product({
+    product = new Product({
       title,
       image: imagePath,
       creator: req.userData.userId
     });
 
     await product.save();
-    res.status(201).json(product);
   } catch (err) {
-    console.error('[CREATE PRODUCT ERROR]', err);
-    res.status(500).json({ message: err.message });
+    return res.status(500).json({ message: 'Creating product failed. Please try again later.' });
   }
+  
+  // STEP 5: Return response
+  res.status(201).json(product);
 };
 
 const deleteProduct = async (req, res) => {
+  // STEP 1: Check admin role
   if (req.userData.role !== 'admin') {
     return res.status(403).json({ message: 'Only admins can delete products.' });
   }
 
   const { id } = req.params;
 
+  // STEP 2: Try deleting the product
+  let product;
   try {
-    const product = await Product.findByIdAndDelete(id);
+    product = await Product.findByIdAndDelete(id);
     if (!product) {
-      return res.status(404).json({ message: 'Product not found' });
+      return res.status(404).json({ message: 'Product not found.' });
     }
-
-    fs.unlink(product.image, (err) => {
-      if (err) console.error('Failed to delete image:', err);
-    });
-
-    res.status(200).json({ message: 'Product deleted successfully' });
   } catch (err) {
-    res.status(500).json({ message: err.message });
+    return res.status(500).json({ message: 'Deleting product failed.' });
   }
+
+  // STEP 3: Remove associated image file
+  fs.unlink(product.image, (err) => {
+    if (err) {
+      console.error('Failed to delete image:', err.message);
+    }
+  });
+
+  // STEP 4: Return success response
+  res.status(200).json({ message: 'Product deleted successfully.' });
 };
 
+
 const updateProduct = async (req, res) => {
+  // STEP 1: Check admin role
   if (req.userData.role !== 'admin') {
     return res.status(403).json({ message: 'Only admins can edit products.' });
   }
 
-  const { title } = req.body;
   const { id } = req.params;
+  const { title } = req.body;
 
+  // STEP 2: Find the existing product
+  let product;
   try {
-    const update = { title };
-
-    if (req.file) {
-      update.image = req.file.path;
-    }
-
-    const product = await Product.findByIdAndUpdate(id, update, { new: true });
-
+    product = await Product.findById(id);
     if (!product) {
-      return res.status(404).json({ message: 'Product not found' });
+      return res.status(404).json({ message: 'Product not found.' });
     }
+  } catch (err) {
+    return res.status(500).json({ message: 'Product not found.'  });
+  }
 
+  // STEP 3: Delete old image if new one is uploaded
+  if (req.file && product.image) {
+    const oldImagePath = path.join(__dirname, '..', product.image);
+    fs.unlink(oldImagePath, (err) => {
+      if (err) {
+        console.error('Image deletion error',err.message);
+      }
+    });
+  }
+
+  // STEP 4: Update product fields
+  product.title = title || product.title;
+  if (req.file) {
+    product.image = req.file.path;
+  }
+
+  // STEP 5: Save updated product
+  try {
+    await product.save();
     res.status(200).json(product);
   } catch (err) {
-    res.status(500).json({ message: err.message });
+    res.status(500).json({ message: 'Updating product failed.' });
   }
 };
 
-module.exports = {
-  getAllProducts,
-  createProduct,
-  deleteProduct,
-  updateProduct
-};
+module.exports = { getAllProducts, createProduct, deleteProduct, updateProduct };

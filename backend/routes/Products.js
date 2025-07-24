@@ -2,17 +2,11 @@ const express = require('express');
 const router = express.Router();
 
 
-const {
-  getAllProducts,
-  createProduct,
-  deleteProduct,
-  updateProduct
-} = require('../controller/Product.js');
-
+const { getAllProducts, createProduct, deleteProduct, updateProduct } = require('../controller/Product.js');
 const fileUpload = require('../middleware/file-upload');
 const checkAuth = require('../middleware/check-auth');
 
-// Public route - anyone can view products
+// Public route  
 router.get('/', getAllProducts);
 
 // Apply auth middleware to all routes below

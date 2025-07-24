@@ -1,33 +1,32 @@
-# macOS system files
-.DS_Store
-*/.DS_Store
+# 🖨️ PrintEase
 
-# Node modules
-node_modules/
-backend/node_modules/
-frontend/node_modules/
+PrintEase is a streamlined e-commerce platform for uploading and browsing printable digital products, such as planners, cards, and templates. The app supports admin-based product management and secure user authentication.
 
-# Environment files
-.env
-*.env
+---
 
-# Logs
-*.log
+## 🚀 Features
 
-# OS junk
-Thumbs.db
-ehthumbs.db
-Icon?
+- 🖼️ Admins can upload, edit, and delete printable products
+- 👤 User registration and login (JWT-based authentication)
+- 📄 View downloadable printables on the Shop page
+- 🔐 Role-based access control (Admin vs Customer)
 
-# IDE/editor files
-.vscode/
-.idea/
-*.swp
+---
 
-# Build files / output (optional)
-dist/
-build/
+## 🛠️ Tech Stack
 
-# Lock files (optional, if you want to avoid lockfile conflicts)
-# package-lock.json
-# yarn.lock
+**Frontend:**
+- React
+- CSS / Tailwind (optional)
+
+**Backend:**
+- Node.js
+- Express.js
+- MongoDB
+- Multer (for image upload)
+- JWT (authentication)
+
+---
+
+## 📂 Folder Structure
+
