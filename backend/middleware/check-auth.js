@@ -11,7 +11,7 @@ module.exports = (req, res, next) => {
 
         const decodedToken = jwt.verify(token, process.env.JWT_SECRET); 
         
-
+        //attack something to request object
         req.userData = {
             userId: decodedToken.userId,
             email: decodedToken.email,

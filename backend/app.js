@@ -25,8 +25,6 @@ app.use(cors({
 app.options('*', cors());
 
 
-
-
 // Middleware to parse JSON bodies
 app.use(express.json());
 
@@ -35,14 +33,7 @@ app.use('/api/users', userRoutes);
 app.use('/api/products', productRoutes);
 app.use('/download', downloadRoutes);
 
-// //Global error handler
-// app.use((err, req, res, next) => {
-//   console.error('Error:', err);
-//   res.status(err.code || 500).json({
-//     message: err.message || 'An unknown error occurred!'
-//   });
-// });
-
+//Global Error
 app.use((error, req, res,next) => {
 
   if(res.headerSent) {
