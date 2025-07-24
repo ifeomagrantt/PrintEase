@@ -1,86 +1,132 @@
 const jwt = require("jsonwebtoken");
 const User = require("../models/User.js");
 const bcrypt = require("bcryptjs");
+const { validationResult } = require('express-validator');
 
-const signup = async (req, res) => {
-  console.log('[DEBUG] Incoming Signup Request:', req.body);
+
+const signup = async (req, res, next) => {
+  // STEP 1: Validate inputs
+  const errors = validationResult(req);
+  if (!errors.isEmpty()) {
+    return res.status(422).json({ message: 'Invalid inputs. Please try again.' });
+  }
 
   const { name, email, password } = req.body;
 
+  // STEP 2: Check for existing user
+  let existingUser;
   try {
-    const existingUser = await User.findOne({ email });
+    existingUser = await User.findOne({ email });
     if (existingUser) {
-      console.log('[DEBUG] User already exists');
-      return res.status(400).json({ message: "User already exists" });
+      return res.status(400).json({ message: 'User already exists.' });
     }
+  } catch (err) {
+    return res.status(500).json({ message: 'Signup failed. Please try again later.' });
+  }
 
-    const hashedPassword = await bcrypt.hash(password, 12);
+  // STEP 3: Hash password
+  let hashedPassword;
+  try {
+    hashedPassword = await bcrypt.hash(password, 12);
+  } catch (err) {
+    return res.status(500).json({ message: 'Could not create user. Please try again.' });
+  }
 
-    const user = await User.create({ name, email, password: hashedPassword });
+  // STEP 4: Create user
+  let user;
+  try {
+    user = await User.create({
+      name,
+      email,
+      password: hashedPassword
+    });
+  } catch (err) {
+    console.error('[ERROR] Creating user:', err.message);
+    return res.status(500).json({ message: 'Failed to save user. Please try again.' });
+  }
 
-    const token = jwt.sign(
+  // STEP 5: Generate token
+  let token;
+  try {
+    token = jwt.sign(
       {
         userId: user._id,
         email: user.email,
         role: user.role
       },
       process.env.JWT_SECRET,
-      { expiresIn: "30d" }
+      { expiresIn: '30d' }
     );
-
-    console.log('[DEBUG] Created user and token:', token);
-
-    res.status(201).json({
-      token,
-      userId: user._id,
-      role: user.role,
-      email: user.email
-    });
-
   } catch (err) {
-    console.error('[SIGNUP ERROR]', err.message);
-    res.status(500).json({ message: err.message });
+    return res.status(500).json({ message: 'Could not generate token. Please try again.' });
   }
+
+  // STEP 6: Respond to frontend
+  res.status(201).json({
+    token,
+    userId: user._id,
+    role: user.role,
+    email: user.email
+  });
 };
+
+const bcrypt = require('bcryptjs');
+const jwt = require('jsonwebtoken');
+const User = require('../models/User'); // adjust as needed
 
 const login = async (req, res) => {
   const { email, password } = req.body;
 
+  // STEP 1: Find the user by email
+  let existingUser;
   try {
-    const user = await User.findOne({ email });
-    if (!user) {
-      return res.status(401).json({ message: "Invalid email or password" });
-    }
+    existingUser = await User.findOne({ email });
+  } catch (err) {
+    return res.status(500).json({ message: 'Login failed. Please try again later.' });
+  }
 
-    const isMatch = await bcrypt.compare(password, user.password);
-    if (!isMatch) {
-      return res.status(401).json({ message: "Invalid email or password" });
-    }
+  // STEP 2: If no user found
+  if (!existingUser) {
+    return res.status(422).json({ message: 'Invalid credentials.' });
+  }
 
-    const token = jwt.sign(
+  // STEP 3: Check if password matches the hashed one
+  let isValidPassword;
+  try {
+    isValidPassword = await bcrypt.compare(password, existingUser.password);
+  } catch (err) {
+    console.error('[LOGIN ERROR] Comparing password:', err.message);
+    return res.status(500).json({ message: 'Could not verify credentials. Please try again.' });
+  }
+
+  // STEP 4: If password is incorrect
+  if (!isValidPassword) {
+    return res.status(422).json({ message: 'Invalid credentials.' });
+  }
+
+  // STEP 5: Generate JWT
+  let token;
+  try {
+    token = jwt.sign(
       {
-        userId: user._id,
-        email: user.email,
-        role: user.role
+        userId: existingUser.id,
+        email: existingUser.email,
+        role: existingUser.role
       },
       process.env.JWT_SECRET,
-      { expiresIn: "30d" }
+      { expiresIn: '1h' }
     );
-
-    res.status(200).json({
-      token,
-      userId: user._id,
-      role: user.role,
-      email: user.email
-    });
-
   } catch (err) {
-    res.status(500).json({ message: err.message });
+    return res.status(500).json({ message: 'Login failed. Please try again.' });
   }
+
+  // STEP 6: Return response with token and user info
+  res.status(200).json({
+    userId: existingUser.id,
+    email: existingUser.email,
+    role: existingUser.role,
+    token
+  });
 };
 
-const logout = (req, res) => {
-  res.status(200).json({ message: "User logged out" });
-};
-
-module.exports = { signup, login, logout };
+module.exports = { signup, login };

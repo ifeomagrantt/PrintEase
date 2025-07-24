@@ -1,23 +1,20 @@
 const express = require('express');
 const router = express.Router();
 
-const { getAllProducts, createProduct, deleteProduct } = require('../controller/ProductsController');
+
+const { getAllProducts, createProduct, deleteProduct, updateProduct } = require('../controller/Product.js');
 const fileUpload = require('../middleware/file-upload');
-//const { addToCart, getCart, removeFromCart } = require('../controller/Cart.js');
-const checkAuth = require('../middleware/check-auth.js');
+const checkAuth = require('../middleware/check-auth');
 
-// Public route - no authentication required
-router.get('/', getAllProducts); 
+// Public route  
+router.get('/', getAllProducts);
 
-// Protected routes - requires valid auth token
+// Apply auth middleware to all routes below
 router.use(checkAuth);
 
-router.post('/', fileUpload.single('image'), createProduct); // handles PNG, JPG
+// Protected routes below
+router.post('/', fileUpload.single('image'), createProduct);
 router.delete('/:id', deleteProduct);
-
-
-//router.post('/add-to-cart/:userId/:productId', addToCart); 
-//router.get('/cart/:userId', getCart);  
-//router.delete('/remove-from-cart/:userId/:productId', removeFromCart);  
+router.patch('/:id', fileUpload.single('image'), updateProduct);
 
 module.exports = router;

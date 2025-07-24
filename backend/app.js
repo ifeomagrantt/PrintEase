@@ -1,43 +1,49 @@
 const express = require('express');
-const dotenv = require('dotenv');
 const cors = require('cors');
+const dotenv = require('dotenv');
+const path = require('path');
 
-const userRoutes = require("./routes/Users.js");
-const productRoutes = require("./routes/Products.js");
+const downloadRoutes = require('./routes/Downloads');
 const connectDB = require('./lib/db.js');
+const userRoutes = require('./routes/Users.js');
+const productRoutes = require('./routes/Products.js');
 
-// Load environment variables
 dotenv.config();
-
 const app = express();
-const PORT = process.env.PORT || 3000;
+const PORT = process.env.PORT || 5001;
 
-// Middleware
-app.use(express.json()); // For JSON bodies
+// serve static files to upload folder
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
-// CORS Middleware
+// CORS setup 
 app.use(cors({
-  origin: 'http://localhost:3000',
-  methods: ['GET', 'POST', 'PATCH', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization'],
+  origin: process.env.REACT_APP_URL, // Your React app URL
+  methods: ['GET', 'POST', 'PATCH', 'DELETE'],
+  allowedHeaders: ['Content-Type', 'Authorization']
 }));
 
-// Debug log (optional)
-app.use((req, res, next) => {
-  console.log('[CORS DEBUG]', req.method, req.headers.origin);
-  next();
-});
+app.options('*', cors());
 
-// Routes
+
+// Middleware to parse JSON bodies
+app.use(express.json());
+
+//Routes
 app.use('/api/users', userRoutes);
 app.use('/api/products', productRoutes);
+app.use('/download', downloadRoutes);
 
-app.use((error, req, res, next) => {
-  console.error('ERROR', error);
-  res.status(error.code || 500).json({ message: error.message || 'An unknown error occurred!' });
+//Global Error
+app.use((error, req, res,next) => {
+
+  if(res.headerSent) {
+      return next(error);
+  }
+  res.status(error.code || 500);  
+  res.json( { message: error.message || 'An unknown error occured'  });
+
 });
-
-// DB Connection 
+// Connect to DB and start the server
 connectDB().then(() => {
   app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
 }).catch(err => {
